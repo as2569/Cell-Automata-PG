@@ -1,0 +1,82 @@
+import pygame
+import sys
+
+
+class Cell:
+    def __init__(self, x, y):
+        self.posX = x * 20
+        self.posY = y * 20
+        self.image = pygame.Surface((20, 20))
+        self.rect = self.image.get_rect()
+        self.rect = self.rect.move(x*20, y*20)
+        self.image.fill((255, 255, 255))
+        self.state = 0
+        return
+
+
+
+class Map:
+    def __init__(self, x, y):
+        self.mapWidth = x
+        self.mapHeight = y
+        self.matrix = {(0, 0): Cell}
+        return
+
+    def make_empty_matrix(self):
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
+                self.matrix[(x, y)] = Cell(x, y)
+        return
+
+
+pygame.init()
+
+cellMap = Map(12, 12)
+windowSize = [600, 400]
+black = 0, 0, 0
+white = 255, 255, 255
+yellow = 255, 255, 0
+blue = 100, 160, 160
+
+cellMap.make_empty_matrix()
+screen = pygame.display.set_mode(windowSize)
+
+
+while 1:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            sys.exit()
+
+    screen.fill(blue)
+
+    for key, cell in cellMap.matrix.items():
+        screen.blit(cell.image, cell.rect)
+        pygame.draw.rect(screen, blue, cell.rect, 1)
+
+    pygame.display.flip()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
