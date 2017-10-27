@@ -1,5 +1,12 @@
 import pygame
 import sys
+import random
+
+
+class CellTypes(enumerate):
+    EMPTY = 0
+    SEA = 1
+    LAND = 2
 
 
 class Cell:
@@ -10,9 +17,19 @@ class Cell:
         self.rect = self.image.get_rect()
         self.rect = self.rect.move(x*20, y*20)
         self.image.fill((255, 255, 255))
-        self.state = 0
+        self.state = CellTypes.EMPTY
         return
 
+    def set_state(self, cell_type):
+        self.state = cell_type
+
+    def update(self):
+        if self.state == 1:
+            self.image.fill((0, 0, 255))
+        elif self.state == 2:
+            self.image.fill((0, 100, 0))
+        else:
+            self.image.fill((255, 255, 255))
 
 
 class Map:
@@ -22,38 +39,60 @@ class Map:
         self.matrix = {(0, 0): Cell}
         return
 
-    def make_empty_matrix(self):
+    def make_empty(self):
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
                 self.matrix[(x, y)] = Cell(x, y)
         return
 
+    def land_sea_pass(self):
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
+                rand = random.random()
+                if rand >= 0.5:
+                    self.matrix[(x, y)].set_state(CellTypes.SEA)
+                else:
+                    self.matrix[(x, y)].set_state(CellTypes.LAND)
+        return
+
+    def update_map(self):
+        for key, value in self.matrix.items():
+            self.matrix[key].update()
+
+    def draw_map(self):
+        for key, cell in cellMap.matrix.items():
+            screen.blit(cell.image, cell.rect)
+            pygame.draw.rect(screen, blue, cell.rect, 1)
+        return
+
 
 pygame.init()
 
-cellMap = Map(12, 12)
-windowSize = [600, 400]
+cellMap = Map(40, 40)
+windowSize = [1200, 800]
 black = 0, 0, 0
 white = 255, 255, 255
 yellow = 255, 255, 0
 blue = 100, 160, 160
 
-cellMap.make_empty_matrix()
+cellMap.make_empty()
 screen = pygame.display.set_mode(windowSize)
-
 
 while 1:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
 
-    screen.fill(blue)
+    screen.fill(blue)  # draw blank screen
 
-    for key, cell in cellMap.matrix.items():
-        screen.blit(cell.image, cell.rect)
-        pygame.draw.rect(screen, blue, cell.rect, 1)
+    pressed = pygame.key.get_pressed()
+    if pressed[pygame.K_e]:
+        cellMap.land_sea_pass()
 
-    pygame.display.flip()
+    cellMap.update_map()
+    cellMap.draw_map()
+
+    pygame.display.flip()  # next frame
 
 
 
