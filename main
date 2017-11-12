@@ -20,6 +20,7 @@ class GameStage(enumerate):
     HILLPASS = 4
     MOUNTAINPASS = 5
 
+
 class Manager:
     def __init__(self):
         self.currentStage = GameStage.INITIAL
@@ -74,26 +75,14 @@ class Map:
         else:
             return self.matrix[(x, y)].state
 
-    def moore(self, target_type, x, y):
+    def moore(self, target_type, cellX, cellY, r):
         count = 0
-        if self.get_cell_state(x, y) == target_type:
-            count += 1
-        if self.get_cell_state(x, y - 1) == target_type:  # top
-            count += 1
-        if self.get_cell_state(x + 1, y - 1) == target_type:  # top right
-            count += 1
-        if self.get_cell_state(x + 1, y) == target_type:  # right
-            count += 1
-        if self.get_cell_state(x + 1, y + 1) == target_type:  # bottom right
-            count += 1
-        if self.get_cell_state(x, y + 1) == target_type:  # bottom
-            count += 1
-        if self.get_cell_state(x - 1, y + 1) == target_type:  # bottom left
-            count += 1
-        if self.get_cell_state(x - 1, y) == target_type:  # left
-            count += 1
-        if self.get_cell_state(x - 1, y - 1) == target_type:  # top left
-            count += 1
+        for x in range(cellX - r, cellX + r + 1):
+            for y in range(cellY - r, cellY + r + 1):
+                if self.get_cell_state(x, y) == target_type:
+                    if abs(cellX - x) <= r and abs(cellY - y) <= r:
+                        count += 1
+        print(count)
         return count
 
     def seed_pass(self):
@@ -117,12 +106,12 @@ class Map:
             for x in range(0, self.mapWidth):
                 for y in range(0, self.mapHeight):
                     if self.matrix[(x, y)].state == CellType.LAND:
-                        if self.moore(CellType.LAND, x, y) >= 5:
+                        if self.moore(CellType.LAND, x, y, 1) >= 5:
                             self.matrix[(x, y)].set_state(CellType.LAND)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     elif self.matrix[(x, y)].state == CellType.SEA:
-                        if self.moore(CellType.LAND, x, y) >= 5:
+                        if self.moore(CellType.LAND, x, y, 1) >= 5:
                             self.matrix[(x, y)].set_state(CellType.LAND)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
@@ -137,7 +126,7 @@ class Map:
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
                 if self.matrix[(x, y)].state == CellType.SEA:
-                    if self.moore(CellType.LAND, x, y) > 0 and self.moore(CellType.SEA, x, y) > 0:
+                    if self.moore(CellType.LAND, x, y, 1) > 0 and self.moore(CellType.SEA, x, y, 1) > 0:
                         self.matrix[(x, y)].set_state(CellType.COAST)
         manager.currentStage = GameStage.COASTPASS
         return
@@ -147,7 +136,7 @@ class Map:
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
                 if self.matrix[(x, y)].state == CellType.LAND:
-                    if self.moore(CellType.LAND, x, y) + self.moore(CellType.HILL, x, y) >= 9:
+                    if self.moore(CellType.LAND, x, y, 1) + self.moore(CellType.HILL, x, y, 1) >= 9:
                         self.matrix[(x, y)].set_state(CellType.HILL)
         manager.currentStage = GameStage.HILLPASS
         return
