@@ -82,7 +82,15 @@ class Map:
                 if self.get_cell_state(x, y) == target_type:
                     if abs(cellX - x) <= r and abs(cellY - y) <= r:
                         count += 1
-        print(count)
+        return count
+
+    def neumann(self, target_type, cellX, cellY, r):
+        count = 0
+        for x in range(cellX - r, cellY + r + 1):
+            for y in range(cellY - r, cellY + r + 1):
+                if self.get_cell_state(x, y) == target_type:
+                    if abs(cellX - x) + abs(cellY - y) <= r:
+                        count += 1
         return count
 
     def seed_pass(self):
@@ -117,7 +125,6 @@ class Map:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     else:
                         print("Unexpected cell state")
-
         manager.currentStage = GameStage.CLUSTER
         return
 
@@ -136,9 +143,19 @@ class Map:
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
                 if self.matrix[(x, y)].state == CellType.LAND:
-                    if self.moore(CellType.LAND, x, y, 1) + self.moore(CellType.HILL, x, y, 1) >= 9:
+                    if self.moore(CellType.LAND, x, y, 2) + self.moore(CellType.HILL, x, y, 2) >= 25:
                         self.matrix[(x, y)].set_state(CellType.HILL)
         manager.currentStage = GameStage.HILLPASS
+        return
+
+    def mountain_pass(self):
+        print('mountain pass')
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
+                if self.matrix[(x, y)].state == CellType.HILL:
+                    if self.moore(CellType.HILL, x, y, 2)  + self.moore(CellType.MOUNTAIN, x, y, 2) >= 25:
+                        self.matrix[(x, y)].set_state(CellType.MOUNTAIN)
+        manager.currentStage = GameStage.MOUNTAINPASS
         return
 
     def update_map(self):
@@ -187,10 +204,12 @@ while 1:
         cellMap.seed_pass()
     if pressed[pygame.K_1]: #and manager.currentStage == GameStage.SEED:
         cellMap.cluster_pass(1)
-    if pressed[pygame.K_2] and manager.currentStage == GameStage.CLUSTER:
+    if pressed[pygame.K_2]: #and manager.currentStage == GameStage.CLUSTER:
         cellMap.coast_pass()
     if pressed[pygame.K_3]: # and manager.currentStage == GameStage.COASTPASS:
         cellMap.hill_pass()
+    if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
+        cellMap.mountain_pass()
 
     cellMap.update_map()
     cellMap.draw_map()
