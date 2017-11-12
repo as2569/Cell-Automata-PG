@@ -8,14 +8,17 @@ class CellType(enumerate):
     SEA = 1
     LAND = 2
     COAST = 3
+    HILL = 4
+    MOUNTAIN = 5
 
 
 class GameStage(enumerate):
     INITIAL = 0
     SEED = 1
     CLUSTER = 2
-    COAST = 3
-
+    COASTPASS = 3
+    HILLPASS = 4
+    MOUNTAINPASS = 5
 
 class Manager:
     def __init__(self):
@@ -36,9 +39,6 @@ class Cell:
     def set_state(self, cell_type):
         self.state = cell_type
 
-    def get_state(self, cell):
-        return self.cell_type
-
     def update(self):
         if self.state == 1:
             self.image.fill(blue)
@@ -46,6 +46,10 @@ class Cell:
             self.image.fill(green)
         elif self.state == 3:
             self.image.fill(teal)
+        elif self.state == 4:
+            self.image.fill(yellow)
+        elif self.state == 5:
+            self.image.fill(red)
         else:
             self.image.fill(black)
 
@@ -70,23 +74,25 @@ class Map:
         else:
             return self.matrix[(x, y)].state
 
-    def moore_neighbors(self, cell_type, x, y):
+    def moore(self, target_type, x, y):
         count = 0
-        if self.get_cell_state(x, y - 1) == cell_type:  # top
+        if self.get_cell_state(x, y) == target_type:
             count += 1
-        if self.get_cell_state(x + 1, y - 1) == cell_type:  # top right
+        if self.get_cell_state(x, y - 1) == target_type:  # top
             count += 1
-        if self.get_cell_state(x + 1, y) == cell_type:  # right
+        if self.get_cell_state(x + 1, y - 1) == target_type:  # top right
             count += 1
-        if self.get_cell_state(x + 1, y + 1) == cell_type:  # bottom right
+        if self.get_cell_state(x + 1, y) == target_type:  # right
             count += 1
-        if self.get_cell_state(x, y + 1) == cell_type:  # bottom
+        if self.get_cell_state(x + 1, y + 1) == target_type:  # bottom right
             count += 1
-        if self.get_cell_state(x - 1, y + 1) == cell_type:  # bottom left
+        if self.get_cell_state(x, y + 1) == target_type:  # bottom
             count += 1
-        if self.get_cell_state(x - 1, y) == cell_type:  # left
+        if self.get_cell_state(x - 1, y + 1) == target_type:  # bottom left
             count += 1
-        if self.get_cell_state(x - 1, y - 1) == cell_type:  # top left
+        if self.get_cell_state(x - 1, y) == target_type:  # left
+            count += 1
+        if self.get_cell_state(x - 1, y - 1) == target_type:  # top left
             count += 1
         return count
 
@@ -106,22 +112,23 @@ class Map:
         return
 
     def cluster_pass(self, run_times):
-        print('cluster pass')
         for i in range(0, run_times):
+            print('cluster pass')
             for x in range(0, self.mapWidth):
                 for y in range(0, self.mapHeight):
                     if self.matrix[(x, y)].state == CellType.LAND:
-                        if self.moore_neighbors(CellType.LAND, x, y) >= 4:
+                        if self.moore(CellType.LAND, x, y) >= 5:
                             self.matrix[(x, y)].set_state(CellType.LAND)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     elif self.matrix[(x, y)].state == CellType.SEA:
-                        if self.moore_neighbors(CellType.LAND, x, y) >= 5:
+                        if self.moore(CellType.LAND, x, y) >= 5:
                             self.matrix[(x, y)].set_state(CellType.LAND)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     else:
                         print("Unexpected cell state")
+
         manager.currentStage = GameStage.CLUSTER
         return
 
@@ -129,19 +136,20 @@ class Map:
         print('coast pass')
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
+                if self.matrix[(x, y)].state == CellType.SEA:
+                    if self.moore(CellType.LAND, x, y) > 0 and self.moore(CellType.SEA, x, y) > 0:
+                        self.matrix[(x, y)].set_state(CellType.COAST)
+        manager.currentStage = GameStage.COASTPASS
+        return
+
+    def hill_pass(self):
+        print('hill pass')
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
                 if self.matrix[(x, y)].state == CellType.LAND:
-                    if self.moore_neighbors(CellType.LAND, x, y) >= 4:
-                        self.matrix[(x, y)].set_state(CellType.LAND)
-                    else:
-                        self.matrix[(x, y)].set_state(CellType.SEA)
-                elif self.matrix[(x, y)].state == CellType.SEA:
-                    if self.moore_neighbors(CellType.LAND, x, y) >= 5:
-                        self.matrix[(x, y)].set_state(CellType.LAND)
-                    else:
-                        self.matrix[(x, y)].set_state(CellType.SEA)
-                else:
-                    print("Unexpected cell state")
-        manager.currentStage = GameStage.COAST
+                    if self.moore(CellType.LAND, x, y) + self.moore(CellType.HILL, x, y) >= 9:
+                        self.matrix[(x, y)].set_state(CellType.HILL)
+        manager.currentStage = GameStage.HILLPASS
         return
 
     def update_map(self):
@@ -151,7 +159,6 @@ class Map:
     def draw_map(self):
         for key, cell in cellMap.matrix.items():
             screen.blit(cell.image, cell.rect)
-            #pygame.draw.rect(screen, blue, cell.rect, 1) #Cell borders
         return
 
     def position_valid(self, x, y):
@@ -163,14 +170,16 @@ class Map:
 
 pygame.init()
 manager = Manager()
-cellMap = Map(120, 80, 10)
+cellMap = Map(240, 160, 5)
 windowSize = [1200, 800]
+
 green = 0, 255, 0
 black = 0, 0, 0
 white = 255, 255, 255
 yellow = 255, 255, 0
-teal = 100, 160, 160
-blue = 255, 0, 0
+red = 255, 0, 0
+teal = 0, 255, 255
+blue = 0, 0, 255
 
 cellMap.make_empty()
 screen = pygame.display.set_mode(windowSize)
@@ -185,12 +194,14 @@ while 1:
         cellMap.seed_pass()
 
     pressed = pygame.key.get_pressed()
-    if pressed[pygame.K_1]:
+    if pressed[pygame.K_r]:
         cellMap.seed_pass()
-    if pressed[pygame.K_2] and manager.currentStage == GameStage.SEED:
-        cellMap.cluster_pass(4)
-    if pressed[pygame.K_3] and manager.currentStage == GameStage.CLUSTER:
+    if pressed[pygame.K_1]: #and manager.currentStage == GameStage.SEED:
+        cellMap.cluster_pass(1)
+    if pressed[pygame.K_2] and manager.currentStage == GameStage.CLUSTER:
         cellMap.coast_pass()
+    if pressed[pygame.K_3]: # and manager.currentStage == GameStage.COASTPASS:
+        cellMap.hill_pass()
 
     cellMap.update_map()
     cellMap.draw_map()
