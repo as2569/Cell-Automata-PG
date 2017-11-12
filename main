@@ -6,10 +6,11 @@ import random
 class CellType(enumerate):
     EMPTY = 0
     SEA = 1
-    LAND = 2
+    PLAINS = 2
     COAST = 3
     HILL = 4
     MOUNTAIN = 5
+    FOREST = 6
 
 
 class GameStage(enumerate):
@@ -19,6 +20,8 @@ class GameStage(enumerate):
     COASTPASS = 3
     HILLPASS = 4
     MOUNTAINPASS = 5
+    FORESTSEED = 6
+    FORESTGROW = 7
 
 
 class Manager:
@@ -44,13 +47,15 @@ class Cell:
         if self.state == 1:
             self.image.fill(blue)
         elif self.state == 2:
-            self.image.fill(green)
+            self.image.fill(yellow)
         elif self.state == 3:
             self.image.fill(teal)
         elif self.state == 4:
-            self.image.fill(yellow)
+            self.image.fill(orange)
         elif self.state == 5:
             self.image.fill(red)
+        elif self.state == 6:
+            self.image.fill(green)
         else:
             self.image.fill(black)
 
@@ -104,7 +109,7 @@ class Map:
                     if rand >= 0.5:
                         self.matrix[(x, y)].set_state(CellType.SEA)
                     else:
-                        self.matrix[(x, y)].set_state(CellType.LAND)
+                        self.matrix[(x, y)].set_state(CellType.PLAINS)
         manager.currentStage = GameStage.SEED
         return
 
@@ -113,14 +118,14 @@ class Map:
             print('cluster pass')
             for x in range(0, self.mapWidth):
                 for y in range(0, self.mapHeight):
-                    if self.matrix[(x, y)].state == CellType.LAND:
-                        if self.moore(CellType.LAND, x, y, 1) >= 5:
-                            self.matrix[(x, y)].set_state(CellType.LAND)
+                    if self.matrix[(x, y)].state == CellType.PLAINS:
+                        if self.moore(CellType.PLAINS, x, y, 1) >= 5:
+                            self.matrix[(x, y)].set_state(CellType.PLAINS)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     elif self.matrix[(x, y)].state == CellType.SEA:
-                        if self.moore(CellType.LAND, x, y, 1) >= 5:
-                            self.matrix[(x, y)].set_state(CellType.LAND)
+                        if self.moore(CellType.PLAINS, x, y, 1) >= 5:
+                            self.matrix[(x, y)].set_state(CellType.PLAINS)
                         else:
                             self.matrix[(x, y)].set_state(CellType.SEA)
                     else:
@@ -128,13 +133,23 @@ class Map:
         manager.currentStage = GameStage.CLUSTER
         return
 
-    def coast_pass(self):
-        print('coast pass')
-        for x in range(0, self.mapWidth):
-            for y in range(0, self.mapHeight):
-                if self.matrix[(x, y)].state == CellType.SEA:
-                    if self.moore(CellType.LAND, x, y, 1) > 0 and self.moore(CellType.SEA, x, y, 1) > 0:
-                        self.matrix[(x, y)].set_state(CellType.COAST)
+    def coast_pass(self, run_times):
+        for i in range(0, run_times):
+            if i == 0:
+                print('coast pass')  # initial pass
+                for x in range(0, self.mapWidth):
+                    for y in range(0, self.mapHeight):
+                        if self.matrix[(x, y)].state == CellType.SEA:
+                            if self.moore(CellType.PLAINS, x, y, 1) > 0 and self.moore(CellType.SEA, x, y, 1) > 0:
+                                self.matrix[(x, y)].set_state(CellType.COAST)
+
+            print('coast cleanup pass')  # clean up pass
+            for x in range(0, self.mapWidth):
+                for y in range(0, self.mapHeight):
+                    if self.matrix[(x, y)].state == CellType.SEA:
+                        if self.moore(CellType.COAST, x, y, 1) >= 5 and self.moore(CellType.PLAINS, x, y, 1) == 0:
+                            self.matrix[(x, y)].set_state(CellType.COAST)
+
         manager.currentStage = GameStage.COASTPASS
         return
 
@@ -142,8 +157,8 @@ class Map:
         print('hill pass')
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
-                if self.matrix[(x, y)].state == CellType.LAND:
-                    if self.moore(CellType.LAND, x, y, 2) + self.moore(CellType.HILL, x, y, 2) >= 25:
+                if self.matrix[(x, y)].state == CellType.PLAINS:
+                    if self.moore(CellType.PLAINS, x, y, 3) + self.moore(CellType.HILL, x, y, 3) >= 49:
                         self.matrix[(x, y)].set_state(CellType.HILL)
         manager.currentStage = GameStage.HILLPASS
         return
@@ -153,9 +168,37 @@ class Map:
         for x in range(0, self.mapWidth):
             for y in range(0, self.mapHeight):
                 if self.matrix[(x, y)].state == CellType.HILL:
-                    if self.moore(CellType.HILL, x, y, 2)  + self.moore(CellType.MOUNTAIN, x, y, 2) >= 25:
+                    if self.moore(CellType.HILL, x, y, 3) + self.moore(CellType.MOUNTAIN, x, y, 3) >= 49:
                         self.matrix[(x, y)].set_state(CellType.MOUNTAIN)
         manager.currentStage = GameStage.MOUNTAINPASS
+        return
+
+    def seed_forests(self):
+        print('seed forest')
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
+                rand = random.random()
+                if self.matrix[(x, y)].state == CellType.PLAINS and rand >= 0.8:  # chance to seed forest at plains
+                    self.matrix[(x, y)].set_state(CellType.FOREST)
+                if self.matrix[(x, y)].state == CellType.HILL and rand >= 0.95:  # chance to seed forest at plains
+                    self.matrix[(x, y)].set_state(CellType.FOREST)
+
+        manager.currentStage = GameStage.FORESTSEED
+        return
+
+    def grow_forests(self):
+        print('grow forest')
+        for x in range(0, self.mapWidth):
+            for y in range(0, self.mapHeight):
+                if self.matrix[(x, y)].state == (CellType.PLAINS or CellType.HILL):  # grow if [X] neighbors are forests
+                    if self.moore(CellType.FOREST, x, y, 1) >= 4:
+                        self.matrix[(x, y)].set_state(CellType.FOREST)
+                if self.matrix[(x, y)].state == CellType.FOREST:
+                    if self.moore(CellType.FOREST, x, y, 1) < 1:  # die if less than [X] neighbor is forest
+                        self.matrix[(x, y)].set_state(CellType.PLAINS)
+                        print('here')
+
+        manager.currentStage = GameStage.FORESTGROW
         return
 
     def update_map(self):
@@ -176,7 +219,7 @@ class Map:
 
 pygame.init()
 manager = Manager()
-cellMap = Map(240, 160, 5)
+cellMap = Map(120, 80, 10)
 windowSize = [1200, 800]
 
 green = 0, 255, 0
@@ -184,7 +227,8 @@ black = 0, 0, 0
 white = 255, 255, 255
 yellow = 255, 255, 0
 red = 255, 0, 0
-teal = 0, 255, 255
+orange = 255, 165, 0
+teal = 0, 200, 255
 blue = 0, 0, 255
 
 cellMap.make_empty()
@@ -202,14 +246,18 @@ while 1:
     pressed = pygame.key.get_pressed()
     if pressed[pygame.K_r]:
         cellMap.seed_pass()
-    if pressed[pygame.K_1]: #and manager.currentStage == GameStage.SEED:
-        cellMap.cluster_pass(1)
-    if pressed[pygame.K_2]: #and manager.currentStage == GameStage.CLUSTER:
-        cellMap.coast_pass()
-    if pressed[pygame.K_3]: # and manager.currentStage == GameStage.COASTPASS:
+    if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
+        cellMap.cluster_pass(3)
+    if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
+        cellMap.coast_pass(3)
+    if pressed[pygame.K_3]:  # and manager.currentStage == GameStage.COASTPASS:
         cellMap.hill_pass()
     if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
         cellMap.mountain_pass()
+    if pressed[pygame.K_5] and manager.currentStage == GameStage.MOUNTAINPASS:
+        cellMap.seed_forests()
+    if pressed[pygame.K_6]:  # and manager.currentStage == GameStage.HILLPASS:
+        cellMap.grow_forests()
 
     cellMap.update_map()
     cellMap.draw_map()
