@@ -131,23 +131,17 @@ def seed_pass(layer):
     return layer
 
 
-def cluster_pass(layer, run_times):
-    local_layer = layer
+def cluster_pass(master, run_times):
+    local_layer = master
     for i in range(0, run_times):
         print('cluster pass')
         for x in range(0, local_layer.mapWidth):
             for y in range(0, local_layer.mapHeight):
-                if local_layer.matrix[(x, y)].state == CellType.PLAINS:
-                    if local_layer.moore(CellType.PLAINS, x, y, 1) >= 4:
-                        local_layer.matrix[(x, y)].set_state(CellType.PLAINS)
-                    else:
-                        local_layer.matrix[(x, y)].set_state(CellType.SEA)
-                elif local_layer.matrix[(x, y)].state == CellType.SEA:
-                    if local_layer.moore(CellType.PLAINS, x, y, 1) >= 5:
-                        local_layer.matrix[(x, y)].set_state(CellType.PLAINS)
-                    else:
-                        local_layer.matrix[(x, y)].set_state(CellType.SEA)
-
+                if local_layer.moore(CellType.SEA, x, y, 1) >= 5:
+                    master.matrix[(x, y)].set_state(CellType.SEA)
+                else:
+                    master.matrix[(x, y)].set_state(CellType.PLAINS)
+                    
     manager.currentStage = GameStage.CLUSTER
     return local_layer
 
