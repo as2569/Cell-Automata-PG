@@ -10,7 +10,7 @@ class CellType(enumerate):
     COAST = 3
     HILL = 4
     MOUNTAIN = 5
-    FOREST = 6
+    CIV = 6
 
 
 class GameStage(enumerate):
@@ -20,8 +20,8 @@ class GameStage(enumerate):
     COASTPASS = 3
     HILLPASS = 4
     MOUNTAINPASS = 5
-    FORESTSEED = 6
-    FORESTGROW = 7
+    SEEDCIVILIZATIONS = 6
+    EXPAND = 7
 
 
 class Manager:
@@ -31,12 +31,12 @@ class Manager:
 
 class Cell:
     def __init__(self, x, y, size):
+        self.state = 0
         self.posX = x * size
         self.posY = y * size
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
         self.rect = self.image.get_rect()
         self.rect = self.rect.move(x * size, y * size)
-        self.state = CellType.EMPTY
         return
 
     def set_state(self, cell_type):
@@ -44,21 +44,22 @@ class Cell:
 
     def update(self):
         if self.state == 0:
-            self.image.fill((0, 0, 0, 0))
-        if self.state == 1:
+            self.image.fill(blank)
+        elif self.state == 1:
             self.image.fill(blue)
         elif self.state == 2:
-            self.image.fill(yellow)
+            self.image.fill(plains_green)
         elif self.state == 3:
             self.image.fill(teal)
         elif self.state == 4:
-            self.image.fill(orange)
+            self.image.fill(brown)
         elif self.state == 5:
-            self.image.fill(red)
+            self.image.fill(white)
         elif self.state == 6:
-            self.image.fill(green)
+            self.image.fill(orange)
         else:
-            self.image.fill((0, 0, 0, 0))
+            print("invalid cell")
+            self.image.fill(blank)
 
 
 class Map:
@@ -115,6 +116,67 @@ class Map:
             return True
 
 
+class Civilization:
+    def __init__(self):
+        self.population = 0
+        self.borders = {}
+
+    def update_borders(self, landLayer, civLayer):
+        self.borders.clear()
+        for x in range(0, land_layer.mapWidth):
+            for y in range(0, land_layer.mapHeight):
+                if civLayer.matrix[(x, y)].state != CellType.CIV \
+                    and civLayer.moore(CellType.CIV, x, y, 1) > 0 \
+                    and landLayer.matrix[(x, y)].state != CellType.SEA \
+                    and landLayer.matrix[(x, y)].state != CellType.MOUNTAIN \
+                    and landLayer.matrix[(x, y)].state != CellType.COAST:
+                    self.borders[(x, y)] = 0
+        self.evaluate_borders(land_layer)
+        return civ_layer
+
+    def evaluate_borders(self, layer):
+        for key in self.borders:
+            numCoast = layer.moore(CellType.COAST, key[0], key[1], 1)
+            numPlains = layer.moore(CellType.PLAINS, key[0], key[1], 1)
+            numHills = layer.moore(CellType.HILL, key[0], key[1], 1)
+            numNeighbors = layer.moore(CellType.CIV, key[0], key[1], 1)
+            totalValue = numCoast * 1 + numPlains * 1 + numHills * 2 + numNeighbors * 3
+            self.borders[key] = totalValue
+        return
+
+    def find_best(self):
+        if len(self.borders.values()) > 0:
+            max_value = max(self.borders.values())
+            max_keys = [k for k, v in self.borders.items() if v == max_value]
+            rand = random.randrange(0, len(max_keys))
+            return max_keys[rand]
+        else:
+            return 0
+
+    def expand(self, landLayer, civLayer):
+        local_civ = self.update_borders(landLayer, civLayer)
+        best_location = self.find_best()
+        if best_location == 0:
+            return local_civ
+        else:
+            local_civ.matrix[best_location].set_state(CellType.CIV)
+            return local_civ
+
+    def find_initial(self, landLayer, civLayer):
+        local_layer = landLayer
+        local_civ = civLayer
+        self.borders.clear()
+        for x in range(0, local_layer.mapWidth):
+            for y in range(0, local_layer.mapHeight):
+                if local_layer.matrix[(x, y)].state == CellType.PLAINS or local_layer.matrix[(x, y)].state == CellType.HILL:
+                    self.borders[(x, y)] = 0
+        self.evaluate_borders(local_layer)
+        best_location = self.find_best()
+        local_civ.matrix[best_location].set_state(CellType.CIV)
+        manager.currentStage = GameStage.EXPAND
+        return local_civ
+
+
 def seed_pass(layer):
     print('seed pass')
     for x in range(0, layer.mapWidth):
@@ -131,17 +193,16 @@ def seed_pass(layer):
     return layer
 
 
-def cluster_pass(master, run_times):
-    local_layer = master
+def cluster_pass(layer, run_times):
+    local_layer = layer
     for i in range(0, run_times):
         print('cluster pass')
         for x in range(0, local_layer.mapWidth):
             for y in range(0, local_layer.mapHeight):
                 if local_layer.moore(CellType.SEA, x, y, 1) >= 5:
-                    master.matrix[(x, y)].set_state(CellType.SEA)
+                    layer.matrix[(x, y)].set_state(CellType.SEA)
                 else:
-                    master.matrix[(x, y)].set_state(CellType.PLAINS)
-                    
+                    layer.matrix[(x, y)].set_state(CellType.PLAINS)
     manager.currentStage = GameStage.CLUSTER
     return local_layer
 
@@ -155,15 +216,14 @@ def coast_pass(layer, run_times):
                 for y in range(0, local_layer.mapHeight):
                     if local_layer.matrix[(x, y)].state == CellType.SEA:
                         if local_layer.moore(CellType.PLAINS, x, y, 1) > 0 and local_layer.moore(CellType.SEA, x, y, 1) > 0:
-                            local_layer.matrix[(x, y)].set_state(CellType.COAST)
+                            layer.matrix[(x, y)].set_state(CellType.COAST)
 
         print('coast cleanup pass')  # clean up pass
         for x in range(0, local_layer.mapWidth):
             for y in range(0, local_layer.mapHeight):
                 if local_layer.matrix[(x, y)].state == CellType.SEA:
                     if local_layer.moore(CellType.COAST, x, y, 1) >= 5 and local_layer.moore(CellType.PLAINS, x, y, 1) == 0:
-                        local_layer.matrix[(x, y)].set_state(CellType.COAST)
-
+                        layer.matrix[(x, y)].set_state(CellType.COAST)
     manager.currentStage = GameStage.COASTPASS
     return local_layer
 
@@ -175,7 +235,7 @@ def hill_pass(layer):
         for y in range(0, local_layer.mapHeight):
             if local_layer.matrix[(x, y)].state == CellType.PLAINS:
                 if local_layer.moore(CellType.PLAINS, x, y, 3) + local_layer.moore(CellType.HILL, x, y, 3) >= 45:
-                    local_layer.matrix[(x, y)].set_state(CellType.HILL)
+                    layer.matrix[(x, y)].set_state(CellType.HILL)
     manager.currentStage = GameStage.HILLPASS
     return local_layer
 
@@ -187,60 +247,39 @@ def mountain_pass(layer):
         for y in range(0, local_layer.mapHeight):
             if local_layer.matrix[(x, y)].state == CellType.HILL:
                 if local_layer.moore(CellType.HILL, x, y, 3) + local_layer.moore(CellType.MOUNTAIN, x, y, 3) >= 45:
-                    local_layer.matrix[(x, y)].set_state(CellType.MOUNTAIN)
-    manager.currentStage = GameStage.MOUNTAINPASS
+                    layer.matrix[(x, y)].set_state(CellType.MOUNTAIN)
+    manager.currentStage = GameStage.SEEDCIVILIZATIONS
     return local_layer
-
-
-def seed_forests(land, forest):
-    local_forest = forest
-    print('seed forest')
-    for x in range(0, land.mapWidth):
-        for y in range(0, land.mapHeight):
-            rand = random.random()
-            if land.matrix[(x, y)].state == CellType.PLAINS and rand >= 0.6:  # chance to seed forest at plains
-                local_forest.matrix[(x, y)].set_state(CellType.FOREST)
-            if land.matrix[(x, y)].state == CellType.HILL and rand >= 0.8:  # chance to seed forest at plains
-                local_forest.matrix[(x, y)].set_state(CellType.FOREST)
-
-    manager.currentStage = GameStage.FORESTSEED
-    return forest
-
-
-def grow_forests(land, forest):
-    local_forest = forest
-    print('grow forest')
-    for x in range(0, local_forest.mapWidth):
-        for y in range(0, local_forest.mapHeight):
-            if land.matrix[(x, y)].state == (CellType.PLAINS or CellType.HILL):  # grow if [X] neighbors are forests
-                if local_forest.moore(CellType.FOREST, x, y, 1) >= 5:
-                    local_forest.matrix[(x, y)].set_state(CellType.FOREST)
-            if local_forest.matrix[(x, y)].state == CellType.FOREST:
-                if local_forest.moore(CellType.FOREST, x, y, 1) <= 2:  # die if less than [X] neighbor is forest
-                    local_forest.matrix[(x, y)].set_state(CellType.EMPTY)
-
-    manager.currentStage = GameStage.FORESTGROW
-    return forest
-
 
 pygame.init()
 manager = Manager()
-land_layer = Map(240, 160, 5)
-#land_layer = Map(120, 80, 10)
-forest_layer = Map(240, 160, 5)
+
+land_layer = Map(120, 80, 10)
+civ_layer = Map(120, 80, 10)
+
+# land_layer = Map(240, 160, 5)
+# civ_layer = Map(240, 160, 5)
+
 windowSize = [1200, 800]
 
-green = 0, 255, 0, 150
+blank = 0, 0, 0, 0
+plains_green = 0, 255, 0, 255
 black = 0, 0, 0, 255
 white = 255, 255, 255, 255
-yellow = 255, 255, 0, 255
+yellow = 0, 128, 0, 255
+brown = 80, 41, 28, 255
 red = 255, 0, 0, 255
 orange = 255, 165, 0, 255
-teal = 0, 200, 255, 255
+teal = 100, 100, 255, 255
+khaki = 170, 167, 153, 255
 blue = 0, 0, 255, 255
+forest_green = 0, 180, 0, 255
 
 land_layer.make_empty()
-forest_layer.make_empty()
+civ_layer.make_empty()
+
+civilization = Civilization()
+
 screen = pygame.display.set_mode(windowSize)
 
 while 1:
@@ -255,7 +294,6 @@ while 1:
     pressed = pygame.key.get_pressed()
     if pressed[pygame.K_r]:
         land_layer.make_empty()
-        forest_layer.make_empty()
         seed_pass(land_layer)
     if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
         land_layer = cluster_pass(land_layer, 1)
@@ -265,16 +303,25 @@ while 1:
         land_layer = hill_pass(land_layer)
     if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
         land_layer = mountain_pass(land_layer)
-    if pressed[pygame.K_5]:  # and manager.currentStage == GameStage.MOUNTAINPASS:
-        forest_layer = seed_forests(land_layer, forest_layer)
-    if pressed[pygame.K_6]:  # and manager.currentStage == GameStage.HILLPASS:
-        forest_layer = grow_forests(land_layer, forest_layer)
+    if pressed[pygame.K_5] and manager.currentStage == GameStage.SEEDCIVILIZATIONS:
+        civ_layer = civilization.find_initial(land_layer, civ_layer)
+
+    pygame.time.wait(100)
+
+    if manager.currentStage == GameStage.EXPAND:
+        civ_layer = civilization.update_borders(land_layer, civ_layer)
+        civ_layer = civilization.expand(land_layer, civ_layer)
+        pygame.time.wait(10)
+
+    # if pressed[pygame.K_6] and manager.currentStage == GameStage.EXPAND:
+    #     civ_layer = civilization.update_borders(land_layer, civ_layer)
+    #     civ_layer = civilization.expand(land_layer, civ_layer)
 
     land_layer.update_map()
-    forest_layer.update_map()
+    civ_layer.update_map()
 
     land_layer.draw_map()
-    forest_layer.draw_map()
+    civ_layer.draw_map()
 
     pygame.display.flip()  # next frame
 
