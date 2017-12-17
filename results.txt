@@ -1,0 +1,3 @@
+
+Total time on 10 tests was 13.716947986440198 for average of 1.3716947986440198 on grid 120 by 80
+Total time on 1 tests was 9200.445143064382 for average of 9200.445143064382 on grid 960 by 640

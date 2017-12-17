@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import time
 
 
 class CellType(enumerate):
@@ -10,7 +11,8 @@ class CellType(enumerate):
     COAST = 3
     HILL = 4
     MOUNTAIN = 5
-    CIV = 6
+    CIV1 = 6
+    CIV2 = 7
 
 
 class GameStage(enumerate):
@@ -48,7 +50,7 @@ class Cell:
         elif self.state == 1:
             self.image.fill(blue)
         elif self.state == 2:
-            self.image.fill(plains_green)
+            self.image.fill(green)
         elif self.state == 3:
             self.image.fill(teal)
         elif self.state == 4:
@@ -57,6 +59,8 @@ class Cell:
             self.image.fill(white)
         elif self.state == 6:
             self.image.fill(orange)
+        elif self.state == 7:
+            self.image.fill(purple)
         else:
             print("invalid cell")
             self.image.fill(blank)
@@ -76,27 +80,54 @@ class Map:
                 self.matrix[(x, y)] = Cell(x, y, self.cellSize)
         return
 
-    def get_cell_state(self, x, y):
+    def get_state(self, x, y):
         if x > self.mapWidth - 1 or x < 0 or y > self.mapHeight - 1 or y < 0:
             return CellType.SEA
         else:
             return self.matrix[(x, y)].state
 
-    def neumann(self, target_type, cellX, cellY, r):
+    def neumann(self, target_type, x, y, r):
         count = 0
-        for x in range(cellX - r, cellY + r + 1):
-            for y in range(cellY - r, cellY + r + 1):
-                if self.get_cell_state(x, y) == target_type:
-                    if abs(cellX - x) + abs(cellY - y) <= r:
-                        count += 1
+        if self.get_state(x - 1, y) == target_type:
+            count += 1
+        if self.get_state(x, y - 1) == target_type:
+            count += 1
+        if self.get_state(x + 1, y) == target_type:
+            count += 1
+        if self.get_state(x, y + 1) == target_type:
+            count += 1
         return count
 
-    def moore(self, target_type, cellX, cellY, r):
+    def moore_by_index(self, type, x, y):
         count = 0
-        for x in range(cellX - r, cellX + r + 1):
-            for y in range(cellY - r, cellY + r + 1):
-                if self.get_cell_state(x, y) == target_type:
-                    if abs(cellX - x) <= r and abs(cellY - y) <= r:
+        if self.get_state(x, y) == type: # self
+            count += 1
+        if self.get_state(x - 1, y) == type: # left center
+            count += 1
+        if self.get_state(x - 1, y - 1) == type: # left bottom
+            count += 1
+        if self.get_state(x, y - 1) == type: # middle bottom
+            count += 1
+        if self.get_state(x + 1, y - 1) == type: # right bottom
+            count += 1
+        if self.get_state(x + 1, y) == type: # right center
+            count += 1
+        if self.get_state(x + 1, y + 1) == type: # right top
+            count += 1
+        if self.get_state(x, y + 1) == type: # middle top
+            count += 1
+        if self.get_state(x - 1, y + 1) == type: # left top
+            count += 1
+        return count
+
+
+    def moore(self, type, xPos, yPos, r):
+        count = 0
+        for x in range(xPos - r, xPos + r + 1):
+            for y in range(yPos - r, yPos + r + 1):
+                if self.get_state(x, y) == type:
+                    if abs(xPos - x) <= r \
+                        and abs(yPos - y) <= r:
                         count += 1
         return count
 
@@ -117,30 +148,44 @@ class Map:
 
 
 class Civilization:
-    def __init__(self):
+    def __init__(self, civType, modifiers):
         self.population = 0
         self.borders = {}
+        self.type = civType
+        self.plainsMod = modifiers[0]
+        self.coastMod = modifiers[1]
+        self.hillsMod = modifiers[2]
+        self.neumannMod = modifiers[3]
+        self.mooreMod = modifiers[4]
 
     def update_borders(self, landLayer, civLayer):
+        local_land = landLayer
+        local_civ = civLayer
         self.borders.clear()
-        for x in range(0, land_layer.mapWidth):
-            for y in range(0, land_layer.mapHeight):
-                if civLayer.matrix[(x, y)].state != CellType.CIV \
-                    and civLayer.moore(CellType.CIV, x, y, 1) > 0 \
-                    and landLayer.matrix[(x, y)].state != CellType.SEA \
-                    and landLayer.matrix[(x, y)].state != CellType.MOUNTAIN \
-                    and landLayer.matrix[(x, y)].state != CellType.COAST:
+        for x in range(0, local_civ.mapWidth):
+            for y in range(0, local_civ.mapHeight):
+                if local_civ.neumann(self.type, x, y, 1) > 0 \
+                    and local_civ.matrix[(x, y)].state == CellType.EMPTY \
+                    and local_land.matrix[(x, y)].state != CellType.SEA \
+                    and local_land.matrix[(x, y)].state != CellType.MOUNTAIN \
+                    and local_land.matrix[(x, y)].state != CellType.COAST:
                     self.borders[(x, y)] = 0
         self.evaluate_borders(land_layer)
-        return civ_layer
+        return
 
     def evaluate_borders(self, layer):
+        local_layer = layer
         for key in self.borders:
-            numCoast = layer.moore(CellType.COAST, key[0], key[1], 1)
-            numPlains = layer.moore(CellType.PLAINS, key[0], key[1], 1)
-            numHills = layer.moore(CellType.HILL, key[0], key[1], 1)
-            numNeighbors = layer.moore(CellType.CIV, key[0], key[1], 1)
-            totalValue = numCoast * 1 + numPlains * 1 + numHills * 2 + numNeighbors * 3
+            numCoast = local_layer.moore(CellType.COAST, key[0], key[1], 2)
+            numPlains = local_layer.moore(CellType.PLAINS, key[0], key[1], 2)
+            numHills = local_layer.moore(CellType.HILL, key[0], key[1], 2)
+            mooreNeighbors = local_layer.moore(self.type, key[0], key[1], 3)
+            neumannNeighbors = local_layer.neumann(self.type, key[0], key[1], 1)
+            totalValue = numCoast * self.coastMod\
+                         + numPlains * self.plainsMod\
+                         + numHills * self.hillsMod \
+                         + mooreNeighbors * self.mooreMod \
+                         + neumannNeighbors * self.neumannMod
             self.borders[key] = totalValue
         return
 
@@ -154,12 +199,14 @@ class Civilization:
             return 0
 
     def expand(self, landLayer, civLayer):
-        local_civ = self.update_borders(landLayer, civLayer)
+        local_civ = civLayer
+        local_land = landLayer
+        self.update_borders(local_land, local_civ)
         best_location = self.find_best()
         if best_location == 0:
             return local_civ
         else:
-            local_civ.matrix[best_location].set_state(CellType.CIV)
+            local_civ.matrix[best_location].set_state(self.type)
             return local_civ
 
     def find_initial(self, landLayer, civLayer):
@@ -172,9 +219,16 @@ class Civilization:
                     self.borders[(x, y)] = 0
         self.evaluate_borders(local_layer)
         best_location = self.find_best()
-        local_civ.matrix[best_location].set_state(CellType.CIV)
+        local_civ.matrix[best_location].set_state(self.type)
         manager.currentStage = GameStage.EXPAND
         return local_civ
+
+
+def wait_and_update(input_time):
+    land_layer.update_map()
+    land_layer.draw_map()
+    pygame.display.flip()
+    pygame.time.wait(input_time)
 
 
 def seed_pass(layer):
@@ -196,7 +250,8 @@ def seed_pass(layer):
 def cluster_pass(layer, run_times):
     local_layer = layer
     for i in range(0, run_times):
-        print('cluster pass')
+        #wait_and_update(200)
+        #print('cluster pass')
         for x in range(0, local_layer.mapWidth):
             for y in range(0, local_layer.mapHeight):
                 if local_layer.moore(CellType.SEA, x, y, 1) >= 5:
@@ -210,15 +265,16 @@ def cluster_pass(layer, run_times):
 def coast_pass(layer, run_times):
     local_layer = layer
     for i in range(0, run_times):
+        #wait_and_update(200)
         if i == 0:
-            print('coast pass')  # initial pass
+            #print('coast pass')  # initial pass
             for x in range(0, local_layer.mapWidth):
                 for y in range(0, local_layer.mapHeight):
                     if local_layer.matrix[(x, y)].state == CellType.SEA:
                         if local_layer.moore(CellType.PLAINS, x, y, 1) > 0 and local_layer.moore(CellType.SEA, x, y, 1) > 0:
                             layer.matrix[(x, y)].set_state(CellType.COAST)
 
-        print('coast cleanup pass')  # clean up pass
+        #print('coast cleanup pass')  # clean up pass
         for x in range(0, local_layer.mapWidth):
             for y in range(0, local_layer.mapHeight):
                 if local_layer.matrix[(x, y)].state == CellType.SEA:
@@ -228,94 +284,151 @@ def coast_pass(layer, run_times):
     return local_layer
 
 
-def hill_pass(layer):
+def hill_pass(layer, run_times):
     local_layer = layer
-    print('hill pass')
-    for x in range(0, local_layer.mapWidth):
-        for y in range(0, local_layer.mapHeight):
-            if local_layer.matrix[(x, y)].state == CellType.PLAINS:
-                if local_layer.moore(CellType.PLAINS, x, y, 3) + local_layer.moore(CellType.HILL, x, y, 3) >= 45:
-                    layer.matrix[(x, y)].set_state(CellType.HILL)
+    for i in range(0, run_times):
+        #wait_and_update(200)
+        #print('hill pass')
+        for x in range(0, local_layer.mapWidth):
+            for y in range(0, local_layer.mapHeight):
+                if local_layer.matrix[(x, y)].state == CellType.PLAINS:
+                    if local_layer.moore(CellType.PLAINS, x, y, 3) + local_layer.moore(CellType.HILL, x, y, 3) >= 45:
+                        layer.matrix[(x, y)].set_state(CellType.HILL)
     manager.currentStage = GameStage.HILLPASS
     return local_layer
 
 
-def mountain_pass(layer):
+def mountain_pass(layer, run_times):
     local_layer = layer
-    print('mountain pass')
-    for x in range(0, local_layer.mapWidth):
-        for y in range(0, local_layer.mapHeight):
-            if local_layer.matrix[(x, y)].state == CellType.HILL:
-                if local_layer.moore(CellType.HILL, x, y, 3) + local_layer.moore(CellType.MOUNTAIN, x, y, 3) >= 45:
-                    layer.matrix[(x, y)].set_state(CellType.MOUNTAIN)
+    for i in range(0, run_times):
+        #wait_and_update(200)
+        #print('mountain pass')
+        for x in range(0, local_layer.mapWidth):
+            for y in range(0, local_layer.mapHeight):
+                if local_layer.matrix[(x, y)].state == CellType.HILL:
+                    if local_layer.moore(CellType.HILL, x, y, 3) + local_layer.moore(CellType.MOUNTAIN, x, y, 3) >= 45:
+                        layer.matrix[(x, y)].set_state(CellType.MOUNTAIN)
     manager.currentStage = GameStage.SEEDCIVILIZATIONS
     return local_layer
+
+
+def performance_check(input_time):
+    final_time = time.clock() - input_time
+    print(str(final_time))
+    file = open('performance.txt', 'a')
+    file.write(str(final_time) + '\n')
+    file.close()
+    return
+
+
+def calc_perf():
+    print('calc results')
+    total_time = 0
+
+    with open('performance.txt') as per_file:
+        for line in per_file:
+            total_time = total_time + float(line)
+
+    output_time = total_time / num_tests
+    res_file = open('results.txt', 'a')
+    res_file.write('Total time on ' + str(num_tests) + ' tests was ' + str(total_time)
+                   + ' for average of ' + str(output_time)
+                   + ' on grid ' + str(x_max) + ' by ' + str(y_max) + '\n')
+    res_file.close()
+    print('results done')
+    return
+
+
+num_tests = 100
+x_max = 480
+y_max = 320
 
 pygame.init()
 manager = Manager()
 
-land_layer = Map(120, 80, 10)
-civ_layer = Map(120, 80, 10)
+#land_layer = Map(960, 640, 1)
+#civ_layer = Map(120, 80, 10)
 
-# land_layer = Map(240, 160, 5)
-# civ_layer = Map(240, 160, 5)
+land_layer = Map(x_max, y_max, 5)
+civ_layer = Map(x_max, y_max, 5)
 
 windowSize = [1200, 800]
 
 blank = 0, 0, 0, 0
-plains_green = 0, 255, 0, 255
+green = 0, 255, 0, 255
 black = 0, 0, 0, 255
 white = 255, 255, 255, 255
 yellow = 0, 128, 0, 255
 brown = 80, 41, 28, 255
 red = 255, 0, 0, 255
-orange = 255, 165, 0, 255
+orange = 255, 165, 0, 210
 teal = 100, 100, 255, 255
-khaki = 170, 167, 153, 255
 blue = 0, 0, 255, 255
-forest_green = 0, 180, 0, 255
+purple = 138, 43, 226, 210
 
 land_layer.make_empty()
 civ_layer.make_empty()
+#open('performance.txt', 'w').close()
 
-civilization = Civilization()
+# Plains, Coast, Hills, Neumann, Moore
+civ1Mods = [2, 1, 3, 30, 30]
+civ2Mods = [1, 1, 1, 1, 1]
+
+civilization1 = Civilization(CellType.CIV1, civ1Mods)
+civilization2 = Civilization(CellType.CIV2, civ2Mods)
 
 screen = pygame.display.set_mode(windowSize)
+
+current_test = 0
 
 while 1:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
 
-    screen.fill((0, 0, 0, 0))  # draw blank screen
-    if manager.currentStage == GameStage.INITIAL:
-        seed_pass(land_layer)
+    if current_test >= num_tests:
+        calc_perf()
+        sys.exit()
 
-    pressed = pygame.key.get_pressed()
-    if pressed[pygame.K_r]:
+    screen.fill((0, 0, 0, 0))  # draw blank screen
+
+    if manager.currentStage == GameStage.INITIAL:
+        start_time = time.clock()
         land_layer.make_empty()
         seed_pass(land_layer)
-    if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
-        land_layer = cluster_pass(land_layer, 1)
-    if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
-        land_layer = coast_pass(land_layer, 3)
-    if pressed[pygame.K_3]:  # and manager.currentStage == GameStage.COASTPASS:
-        land_layer = hill_pass(land_layer)
-    if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
-        land_layer = mountain_pass(land_layer)
-    if pressed[pygame.K_5] and manager.currentStage == GameStage.SEEDCIVILIZATIONS:
-        civ_layer = civilization.find_initial(land_layer, civ_layer)
+    elif manager.currentStage == GameStage.SEED:
+        land_layer = cluster_pass(land_layer, 8)
+    elif manager.currentStage == GameStage.CLUSTER:
+        land_layer = coast_pass(land_layer, 5)
+    elif manager.currentStage == GameStage.COASTPASS:
+        land_layer = hill_pass(land_layer, 1)
+    elif manager.currentStage == GameStage.HILLPASS:
+        land_layer = mountain_pass(land_layer, 1)
+    elif manager.currentStage == GameStage.SEEDCIVILIZATIONS:
+        performance_check(start_time)
+        current_test = current_test + 1
+        manager.currentStage = GameStage.INITIAL
 
-    pygame.time.wait(100)
+    # pressed = pygame.key.get_pressed()
+    # if pressed[pygame.K_r]:
+    #     land_layer.make_empty()
+    #     seed_pass(land_layer)
+    # if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
+    #     land_layer = cluster_pass(land_layer, 8)
+    # if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
+    #     land_layer = coast_pass(land_layer, 5)
+    # if pressed[pygame.K_3]:  # and manager.currentStage == GameStage.COASTPASS:
+    #     land_layer = hill_pass(land_layer, 1)
+    # if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
+    #     land_layer = mountain_pass(land_layer, 1)
 
-    if manager.currentStage == GameStage.EXPAND:
-        civ_layer = civilization.update_borders(land_layer, civ_layer)
-        civ_layer = civilization.expand(land_layer, civ_layer)
-        pygame.time.wait(10)
-
-    # if pressed[pygame.K_6] and manager.currentStage == GameStage.EXPAND:
-    #     civ_layer = civilization.update_borders(land_layer, civ_layer)
-    #     civ_layer = civilization.expand(land_layer, civ_layer)
+    # elif manager.currentStage == GameStage.SEEDCIVILIZATIONS:
+    #     civ_layer = civilization1.find_initial(land_layer, civ_layer)
+    #     civ_layer = civilization2.find_initial(land_layer, civ_layer)
+    # elif manager.currentStage == GameStage.EXPAND:
+    #     civ_layer = civilization1.expand(land_layer, civ_layer)
+    #     civ_layer = civilization2.expand(land_layer, civ_layer)
+    #     pygame.time.wait(5)
 
     land_layer.update_map()
     civ_layer.update_map()
@@ -324,7 +437,6 @@ while 1:
     civ_layer.draw_map()
 
     pygame.display.flip()  # next frame
-
 
 
 
