@@ -339,15 +339,12 @@ def calc_perf():
     return
 
 
-num_tests = 100
+num_tests = 1
 x_max = 480
 y_max = 320
 
 pygame.init()
 manager = Manager()
-
-#land_layer = Map(960, 640, 1)
-#civ_layer = Map(120, 80, 10)
 
 land_layer = Map(x_max, y_max, 5)
 civ_layer = Map(x_max, y_max, 5)
