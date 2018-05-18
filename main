@@ -441,9 +441,9 @@ while 1:
         seed_pass(land_layer)
     if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
         land_layer = cluster_pass(land_layer, 8)
-    if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
+    #if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
         #land_layer = coast_pass(land_layer, 5)
-        land_layer = apply_rule(land_layer, testRule)
+    #    land_layer = apply_rule(land_layer, testRule)
     # if pressed[pygame.K_3]:  # and manager.currentStage == GameStage.COASTPASS:
     #     land_layer = hill_pass(land_layer, 1)
     # if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
