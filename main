@@ -130,6 +130,7 @@ class Map:
                     if abs(xPos - x) <= r \
                         and abs(yPos - y) <= r:
                         count += 1
+        print('moore val ' + str(count))
         return count
 
     def update_map(self):
@@ -233,39 +234,36 @@ def wait_and_update(input_time):
 
 
 testRule = {'target_type':CellType.PLAINS,
-           'condition':{'n_type':'moore', 'check_type': CellType.PLAINS, 'range':1, 'target_value':9},
-            'pass_input':CellType.HILL, 'fail_output':CellType.SEA}
+           'condition':{'n_type':'moore', 'check_type':CellType.PLAINS, 'range':1, 'target_value':5},
+            'pass_output':CellType.HILL, 'fail_output':CellType.SEA}
 
 def apply_rule(layer, rule):
-    print('applying rule')
-    this_layer = layer
-    for x in range(0, this_layer.mapWidth):
-        for y in range(0, this_layer.mapHeight):
-            if this_layer.matrix[(x, y)].state == rule.get('target_type'):
-                if check_condition(this_layer, rule.get('condition'), x, y) == True:
-                    this_layer.matrix[(x, y)].set_state(rule.get('pass_output'))
+    applied_to = 0
+    for x in range(0, layer.mapWidth):
+        for y in range(0, layer.mapHeight):
+            if layer.matrix[(x, y)].state == rule.get('target_type'):
+                applied_to = applied_to + 1
+                if check_condition(layer, rule.get('condition'), x, y) == True:
+                    layer.matrix[(x, y)].set_state(rule.get('pass_output'))
+                    print('rule pass')
                 else:
-                    this_layer.matrix[(x, y)].set_state(rule.get('fail_output'))
-    return this_layer
+                    layer.matrix[(x, y)].set_state(rule.get('fail_output'))
+                    print('rule fail')
+    manager.currentStage = GameStage.COASTPASS
+    print('rule applied to ' + str(applied_to))
+    return layer
 
 
 def check_condition(layer, condition, in_x, in_y):
-    this_layer = layer
     print('checking condition')
     if condition.get('n_type') == 'moore':
-        if this_layer.moore(condition.get('check_type'), in_x, in_y, condition.get('range')) >= condition.get('target_value'):
+        var = layer.moore(condition.get('check_type'), in_x, in_y, condition.get('range'))
+        print('check value ' + str(var))
+        if var >= condition.get('target_value'):
+            print("condition eval to T")
             return True
     else:
         print("Unexpected neighborhood value")
-
-                #local_layer = this_layer
-            #if local_layer.moore(CellType.SEA, x, y, 1) >= 5:
-           #      layer.matrix[(x, y)].set_state(CellType.SEA)
-         #   else:
-        #        layer.matrix[(x, y)].set_state(CellType.PLAINS)
-        #manager.currentStage = GameStage.CLUSTER
-        #return local_layer
-
 
 def seed_pass(layer):
     print('seed pass')
@@ -376,8 +374,10 @@ def calc_perf():
 
 
 num_tests = 1
-x_max = 120
-y_max = 80
+#x_max = 120
+#y_max = 80
+x_max = 30
+y_max = 20
 
 pygame.init()
 manager = Manager()
@@ -421,28 +421,29 @@ while 1:
 
     screen.fill((0, 0, 0, 0))  # draw blank screen
 
-    if manager.currentStage == GameStage.INITIAL:
-        land_layer.make_empty()
-        seed_pass(land_layer)
-    elif manager.currentStage == GameStage.SEED:
-        land_layer = cluster_pass(land_layer, 8)
-    elif manager.currentStage == GameStage.CLUSTER:
-        #land_layer = coast_pass(land_layer, 1)
-        land_layer = apply_rule(land_layer, testRule)
+    # if manager.currentStage == GameStage.INITIAL:
+    #     land_layer.make_empty()
+    #     seed_pass(land_layer)
+    # elif manager.currentStage == GameStage.SEED:
+    #     land_layer = cluster_pass(land_layer, 8)
+    # elif manager.currentStage == GameStage.CLUSTER:
+    #     #land_layer = coast_pass(land_layer, 1)
+    #     land_layer = apply_rule(land_layer, testRule)
     #elif manager.currentStage == GameStage.COASTPASS:
         #land_layer = hill_pass(land_layer, 1)
     #elif manager.currentStage == GameStage.HILLPASS:
         #land_layer = mountain_pass(land_layer, 1)
 
 
-    # pressed = pygame.key.get_pressed()
-    # if pressed[pygame.K_r]:
-    #     land_layer.make_empty()
-    #     seed_pass(land_layer)
-    # if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
-    #     land_layer = cluster_pass(land_layer, 8)
-    # if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
-    #     land_layer = coast_pass(land_layer, 5)
+    pressed = pygame.key.get_pressed()
+    if pressed[pygame.K_r]:
+        land_layer.make_empty()
+        seed_pass(land_layer)
+    if pressed[pygame.K_1]:  # and manager.currentStage == GameStage.SEED:
+        land_layer = cluster_pass(land_layer, 8)
+    if pressed[pygame.K_2]:  # and manager.currentStage == GameStage.CLUSTER:
+        #land_layer = coast_pass(land_layer, 5)
+        land_layer = apply_rule(land_layer, testRule)
     # if pressed[pygame.K_3]:  # and manager.currentStage == GameStage.COASTPASS:
     #     land_layer = hill_pass(land_layer, 1)
     # if pressed[pygame.K_4]:  # and manager.currentStage == GameStage.HILLPASS:
