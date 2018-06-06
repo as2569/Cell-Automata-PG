@@ -3,13 +3,13 @@ import tkinter as tk
 class Data:
     def __init__(self):
         self.cellList = CellList()
-        self.cellList.CreateCellList()
                 
 class CellRow:
-    def __init__(self, ID, frame):
+    def __init__(self, rowNum, frame):
         self.frame = frame
-        self.cellId = tk.Label(self.frame, text = str(ID), font = ('Helvetica', 20))
-        self.cellName = tk.Label(self.frame, text = 'Empty', font = ('Helvetica', 20))
+        self.rowNum = rowNum
+        self.cellId = tk.Label(self.frame, text = str(rowNum), font = ('Helvetica', 20))
+        self.cellName = tk.Label(self.frame, text = 'Initial', font = ('Helvetica', 20))
         self.cellColor = tk.Canvas(self.frame, width=20, height=20, bg="black")
         self.deleteButton = tk.Button(self.frame, text = "delete", command = self.ClearRow)
 
@@ -28,25 +28,31 @@ class CellRow:
         self.deleteButton.grid(column = 3, row = rowNum)
 
     def ClearRow(self):
-        print('debug clear row')
+        data.cellList.row_data[self.rowNum] = ['Empty', (0,0,0,0)]
+        data.cellList.UpdateRows()
+        print('clear row' + str(self.rowNum))
         
         
 class CellList:
     def __init__(self):
-        self.row_data = [['Empty', (0,0,0,0)]] * 11
+        self.maxCells = 10
+        self.row_data = [['Initial', (0,0,0,0)]] * self.maxCells
         self.row_gui = []
         self.cellListFrame = tk.Frame(master)
         self.cellListFrame.grid(column=0, row=0)
         self.CreateRows()
+        self.UpdateRows()
 
     def CreateRows(self):
         self.cellListLabel = tk.Label(self.cellListFrame, text="Cell List", font=('Helvetica', 20))
         self.cellListLabel.grid(column=0, row=0, columnspan=4)
-        for i in range(0, 10):
-            print('updating')
+        for i in range(0, self.maxCells):
             cellRow = CellRow(i, self.cellListFrame)
             self.row_gui.append(cellRow)
-            cellRow.UpdateRow(i, self.row_data[i])
+
+    def UpdateRows(self):
+        for i in range(0, self.maxCells):
+            self.row_gui[i].UpdateRow(i, self.row_data[i])
 
     def Delete_cell_data(self, inInt):
         print('test ' + str(inInt))
