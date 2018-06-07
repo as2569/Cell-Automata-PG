@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter.colorchooser import * 
 
 class Data:
     def __init__(self):
@@ -29,8 +30,7 @@ class CellRow:
         self.deleteButton.grid(column = 3, row = rowNum+1)
 
     def ClearRow(self):
-        data.cellList.row_data[self.rowNum] = [None]
-        data.cellList.SortRowData()
+        data.cellList.row_data[self.rowNum] = None
         data.cellList.UpdateRows()
         print('clear row ' + str(self.rowNum))
         
@@ -56,27 +56,47 @@ class CellList:
         self.addCellLabel = tk.Label(self.cellListFrame, text = "Add cell", font = ('Helvetica', 20))
         self.addCellLabel.grid(column=0, row=self.maxCells+1, columnspan=4)
         #Add cell widgets
-        self.addCellName = tk.Entry(self.cellListFrame)
+        self.addCellName = tk.Entry(self.cellListFrame) #Name entry
         self.addCellName.grid(column=0, row=self.maxCells+2)
-        self.addCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell)
-        self.addCellButton.grid(column=1, row=self.maxCells+2)
+        self.addCellColor = tk.Button(self.cellListFrame, text = "Color", command = self.GetCellColor) #Pick color button
+        self.addCellColor.grid(column=1, row=self.maxCells+2) 
+        self.addCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell) #Add button
+        self.addCellButton.grid(column=2, row=self.maxCells+2)
+
+    def GetCellColor(self):
+        color = askcolor()
+        print(str(color))
 
     def SortRowData(self):
-        print(str(len(self.row_data)))
-        for i in range(0, len(self.row_data)):
+        for i in range(0, self.maxCells):
             if self.row_data[i] is None:
                 self.row_data.pop(i)
-                self.row_data.append([None])
-        print(str(len(self.row_data)))
-        
+                self.row_data.append(None)
+        print(self.row_data)
+                
+    def FindEmptyRow(self):
+        for i in range(0, self.maxCells):
+            if self.row_data[i] is None:
+                return i
+        return False
+            
     def UpdateRows(self):
         self.SortRowData()
         for i in range(0, self.maxCells):
             self.row_gui[i].UpdateRow(i, self.row_data[i])
 
     def AddCell(self):
-        print('adding cell')
+        newCellIndex = self.FindEmptyRow()
+        print('adding cell at ' + str(newCellIndex))
+        if newCellIndex is False:
+           print("all full")
+           return
         
+        newCell = [self.addCellName.get(), (0,0,0,0)]
+        self.row_data[newCellIndex] = newCell
+        self.UpdateRows()
+        print(self.row_data[newCellIndex])
+              
 root = tk.Tk()
 root.geometry('1200x800')
 
