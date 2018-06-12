@@ -53,19 +53,20 @@ class CellList:
             cellRow = CellRow(i, self.cellListFrame)
             self.row_gui.append(cellRow)
         #Add cell label    
-        self.addCellLabel = tk.Label(self.cellListFrame, text = "Add cell", font = ('Helvetica', 20))
-        self.addCellLabel.grid(column=0, row=self.maxCells+1, columnspan=4)
+        self.newCellLabel = tk.Label(self.cellListFrame, text = "Add cell", font = ('Helvetica', 20))
+        self.newCellLabel.grid(column=0, row=self.maxCells+1, columnspan=4)
         #Add cell widgets
-        self.addCellName = tk.Entry(self.cellListFrame) #Name entry
-        self.addCellName.grid(column=0, row=self.maxCells+2)
-        self.addCellColor = tk.Button(self.cellListFrame, text = "Color", command = self.GetCellColor) #Pick color button
-        self.addCellColor.grid(column=1, row=self.maxCells+2) 
-        self.addCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell) #Add button
-        self.addCellButton.grid(column=2, row=self.maxCells+2)
-
+        self.newCellName = tk.Entry(self.cellListFrame) #Name entry
+        self.newCellName.grid(column=0, row=self.maxCells+2)
+        self.newCellColor = tk.Button(self.cellListFrame, bg="black", bitmap="gray12", height=24, width=24, command = self.GetCellColor) #Pick color button   
+        self.newCellColor.grid(column=1, row=self.maxCells+2)
+        self.newCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell) #Add button
+        self.newCellButton.grid(column=2, row=self.maxCells+2)
+        
     def GetCellColor(self):
         color = askcolor()
-        print(str(color))
+        self.newCellColor['bg'] = color[1]
+        print(color)
 
     def SortRowData(self):
         for i in range(0, self.maxCells):
@@ -92,7 +93,7 @@ class CellList:
            print("all full")
            return
         
-        newCell = [self.addCellName.get(), (0,0,0,0)]
+        newCell = [self.newCellName.get(), (0,0,0,0)]
         self.row_data[newCellIndex] = newCell
         self.UpdateRows()
         print(self.row_data[newCellIndex])
