@@ -17,7 +17,7 @@ class CellRow:
     def UpdateRow(self, rowNum, rowData):
         newRowData = rowData
         if newRowData is None:
-            newRowData = ['Empty',(0,0,0,0)]
+            newRowData = ['Empty','#000000']
             
         self.cellId['text'] = str(rowNum)
         self.cellId.grid(column = 0, row = rowNum+1)
@@ -25,6 +25,7 @@ class CellRow:
         self.cellName['text'] = newRowData[0]
         self.cellName.grid(column = 1, row = rowNum+1)
 
+        self.cellColor['bg'] = newRowData[1]
         self.cellColor.grid(column = 2, row = rowNum+1)
 
         self.deleteButton.grid(column = 3, row = rowNum+1)
@@ -45,28 +46,31 @@ class CellList:
         self.UpdateRows()
 
     def CreateCellList(self):
-        #Cell list label
+        # Cell list label
         self.cellListLabel = tk.Label(self.cellListFrame, text="Cell List", font=('Helvetica', 20)) 
         self.cellListLabel.grid(column=0, row=0, columnspan=4)
-        #Cell rows
+        # Cell rows
         for i in range(0, self.maxCells):
             cellRow = CellRow(i, self.cellListFrame)
             self.row_gui.append(cellRow)
-        #Add cell label    
+        # Add cell label    
         self.newCellLabel = tk.Label(self.cellListFrame, text = "Add cell", font = ('Helvetica', 20))
         self.newCellLabel.grid(column=0, row=self.maxCells+1, columnspan=4)
-        #Add cell widgets
-        self.newCellName = tk.Entry(self.cellListFrame) #Name entry
+        # Add cell widgets
+        self.newCellName = tk.Entry(self.cellListFrame) # Name entry
         self.newCellName.grid(column=0, row=self.maxCells+2)
-        self.newCellColor = tk.Button(self.cellListFrame, bg="black", bitmap="gray12", height=24, width=24, command = self.GetCellColor) #Pick color button   
+        self.newCellColor = tk.Button(self.cellListFrame, bg="black", bitmap="gray12", height=24, width=24, command = self.GetCellColor) # Pick color button   
         self.newCellColor.grid(column=1, row=self.maxCells+2)
-        self.newCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell) #Add button
+        self.newCellButton = tk.Button(self.cellListFrame, text = "Add cell", command = self.AddCell) # Add button
         self.newCellButton.grid(column=2, row=self.maxCells+2)
         
     def GetCellColor(self):
-        color = askcolor()
-        self.newCellColor['bg'] = color[1]
-        print(color)
+        colorsFromPicker = askcolor()
+        #color_rgb_list = []
+        #for value in colorsFromPicker[0]: # Add values for RGB
+        #    color_rgb_list.append(int(value))
+        #color = tuple(color_rgb_list)
+        self.newCellColor['bg'] = colorsFromPicker[1]
 
     def SortRowData(self):
         for i in range(0, self.maxCells):
@@ -93,7 +97,7 @@ class CellList:
            print("all full")
            return
         
-        newCell = [self.newCellName.get(), (0,0,0,0)]
+        newCell = [self.newCellName.get(), self.newCellColor['bg']]
         self.row_data[newCellIndex] = newCell
         self.UpdateRows()
         print(self.row_data[newCellIndex])
